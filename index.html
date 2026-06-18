@@ -10,7 +10,7 @@
 :root{--navy:#272443;--blue:#DA392B;--ink:#262335;--muted:#727272;--line:#E6E1D7;--bg:#F6F4F0;
 --good:#2e9e5b;--mid:#e0a32e;--bad:#DA392B;--chip:#F0EADF;--teal:#0d9488;}
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;overflow-x:hidden;}
 header{background:linear-gradient(110deg,#272443,#3a3654);color:#fff;padding:20px 30px;}
 .htop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 header h1{margin:0;font-size:21px;letter-spacing:.3px}
@@ -95,6 +95,13 @@ td.center,th.center{text-align:center}
 }
 header h1,.clientcard .nm,.rubric h2,.kpi .n{font-family:'Suez One',Georgia,serif;font-weight:400}
 .score,.yoy td,.detail b{font-family:Arial,Helvetica,sans-serif}
+html{overflow-x:hidden}
+.panel canvas{max-width:100%!important}
+.carouselpanel{display:flex;flex-direction:column}
+.carwrap{flex:1;min-height:175px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8px;transition:opacity .25s ease}
+.carq{font-family:'Suez One',Georgia,serif;font-size:18px;line-height:1.4;color:var(--navy);max-width:90%}
+.carm{margin-top:12px;font-size:13px;font-weight:700;color:var(--blue)}
+@media(max-width:760px){.carq{font-size:16px}}
 </style>
 </head>
 <body>
@@ -129,7 +136,7 @@ header h1,.clientcard .nm,.rubric h2,.kpi .n{font-family:'Suez One',Georgia,seri
     </div>
     <div class="grid cards2" style="margin-top:18px">
       <div class="panel"><h3>Value delivered (calls tagged)</h3><canvas id="cVal" height="260"></canvas></div>
-      <div class="panel"><h3>Number of calls per client</h3><canvas id="cClient" height="260"></canvas></div>
+      <div class="panel carouselpanel"><h3>Client praise — high-value quotes</h3><div id="carWrap" class="carwrap"><div id="carQuote" class="carq"></div><div id="carMeta" class="carm"></div></div></div>
     </div>
   </div>
 
@@ -241,7 +248,8 @@ $('#yearSel').innerHTML='<option value="">All years</option>'+DATA.years.map(y=>
 
 function renderKPIs(){
  const cs=calls(),n=cs.length||1;
- const k=[['Calls',cs.length],['Clients',DATA.totals.clients],
+ const cc=cs.filter(c=>c.is_client);const dc=new Set(cc.map(c=>c.client+'|'+c.team)).size||1;
+ const k=[['Calls',cs.length],['Avg calls / deployment',(cc.length/dc).toFixed(1)],
   ['Hours',(cs.reduce((a,c)=>a+c.dur,0)/60).toFixed(0)],
   ['Avg sentiment',(cs.reduce((a,c)=>a+sentVal(c),0)/n).toFixed(2)],
   ['Avg craft',(cs.reduce((a,c)=>a+craftVal(c),0)/n).toFixed(2)]];
@@ -250,14 +258,13 @@ function renderKPIs(){
 function hist(vals,bins){const h=Array(bins.length-1).fill(0);vals.forEach(v=>{for(let i=0;i<bins.length-1;i++){if(v>=bins[i]&&(v<bins[i+1]||i===bins.length-2)){h[i]++;break;}}});return h;}
 function renderDash(){
  const cs=calls();const sb=[1,2,3,4,4.5,5.01];
- charts.s=new Chart($('#cSent'),{type:'bar',data:{labels:['1–2','2–3','3–4','4–4.5','4.5–5'],datasets:[{data:hist(cs.map(sentVal),sb),backgroundColor:'#2E75B6'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
- charts.c=new Chart($('#cCraft'),{type:'bar',data:{labels:['1–2','2–3','3–4','4–4.5','4.5–5'],datasets:[{data:hist(cs.map(craftVal),sb),backgroundColor:'#1F3A5F'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+ charts.s=new Chart($('#cSent'),{type:'bar',data:{labels:['1–2','2–3','3–4','4–4.5','4.5–5'],datasets:[{data:hist(cs.map(sentVal),sb),backgroundColor:'#272443'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+ charts.c=new Chart($('#cCraft'),{type:'bar',data:{labels:['1–2','2–3','3–4','4–4.5','4.5–5'],datasets:[{data:hist(cs.map(craftVal),sb),backgroundColor:'#DA392B'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
  const months={};cs.forEach(c=>{const m=c.date.slice(0,7);months[m]=(months[m]||0)+1;});const mk=Object.keys(months).sort();
- charts.m=new Chart($('#cMonth'),{type:'line',data:{labels:mk,datasets:[{data:mk.map(m=>months[m]),borderColor:'#2E75B6',backgroundColor:'rgba(46,117,182,.15)',fill:true,tension:.3}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+ charts.m=new Chart($('#cMonth'),{type:'line',data:{labels:mk,datasets:[{data:mk.map(m=>months[m]),borderColor:'#272443',backgroundColor:'rgba(39,36,67,.12)',fill:true,tension:.3}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
  const vc={};cs.forEach(c=>c.values.forEach(v=>vc[v]=(vc[v]||0)+1));const vk=Object.keys(vc).sort((a,b)=>vc[b]-vc[a]);
- charts.v=new Chart($('#cVal'),{type:'bar',data:{labels:vk,datasets:[{data:vk.map(k=>vc[k]),backgroundColor:'#1F3A5F'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}});
- const cc={};clientCalls().forEach(c=>cc[c.client]=(cc[c.client]||0)+1);const ck=Object.keys(cc).sort((a,b)=>cc[b]-cc[a]);
- charts.cl=new Chart($('#cClient'),{type:'bar',data:{labels:ck,datasets:[{data:ck.map(k=>cc[k]),backgroundColor:'#2E75B6'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}});
+ charts.v=new Chart($('#cVal'),{type:'bar',data:{labels:vk,datasets:[{data:vk.map(k=>vc[k]),backgroundColor:'#DA392B'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}});
+ renderCarousel();
 }
 function yearStats(y){const cs=DATA.calls.filter(c=>c.year===y),n=cs.length||1;return{
  calls:cs.length,hours:+(cs.reduce((a,c)=>a+c.dur,0)/60).toFixed(0),
@@ -271,10 +278,10 @@ function renderYoY(){
    const cls=d>0?'up':d<0?'down':'';const sign=d>0?'▲ +':d<0?'▼ ':'';r+=`<td class="delta ${cls}">${d===0?'—':sign+Math.abs(d)}</td>`;}
   return r+'</tr>';}).join('');
  $('#yoyTableWrap').innerHTML=`<table class="yoy">${head}${body}</table>`;
- charts.yc=new Chart($('#cYearCalls'),{type:'bar',data:{labels:ys,datasets:[{label:'Calls',data:ys.map(y=>st[y].calls),backgroundColor:'#2E75B6'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+ charts.yc=new Chart($('#cYearCalls'),{type:'bar',data:{labels:ys,datasets:[{label:'Calls',data:ys.map(y=>st[y].calls),backgroundColor:'#272443'}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
  charts.ys=new Chart($('#cYearScore'),{type:'bar',data:{labels:ys,datasets:[
-   {label:'Sentiment',data:ys.map(y=>st[y].sent),backgroundColor:'#2E75B6'},
-   {label:'Craft',data:ys.map(y=>st[y].craft),backgroundColor:'#1F3A5F'}]},options:{scales:{y:{beginAtZero:true,max:5}}}});
+   {label:'Sentiment',data:ys.map(y=>st[y].sent),backgroundColor:'#272443'},
+   {label:'Craft',data:ys.map(y=>st[y].craft),backgroundColor:'#DA392B'}]},options:{scales:{y:{beginAtZero:true,max:5}}}});
 }
 let sortK='date',sortDir=-1;
 function fillSel(sel,label,vals){sel.innerHTML=`<option value="">${label} (all)</option>`+vals.map(v=>`<option>${v}</option>`).join('');}
@@ -345,6 +352,18 @@ function setTag(id,on){const t=$('#tag-'+id);if(t){t.className='tag '+(on?'usein
 function renderRubricTags(){
  setTag('sent-ind',SENT==='ind');setTag('sent-ours',SENT==='ours');
  setTag('craft-ind',CRAFT==='ind');setTag('craft-ours',CRAFT==='ours');
+}
+let carT=null;
+function renderCarousel(){
+ if(carT){clearInterval(carT);carT=null;}
+ const wrap=$('#carWrap'); if(!wrap) return;
+ let q=[]; calls().forEach(c=>c.quotes.forEach(x=>{ if(x.strong || (x.t&&x.t.split(' ').length>=8)) q.push({t:x.t,s:x.s,client:c.client,strong:x.strong}); }));
+ q.sort((a,b)=>(b.strong-a.strong)||(b.t.length-a.t.length)); q=q.slice(0,40);
+ if(!q.length){$('#carQuote').textContent='No quotes for this selection.';$('#carMeta').textContent='';return;}
+ let i=0;
+ function show(){const it=q[i%q.length]; wrap.style.opacity='0';
+  setTimeout(()=>{$('#carQuote').textContent='“'+it.t+'”';$('#carMeta').textContent='— '+it.s+' · '+it.client;wrap.style.opacity='1';},200); i++;}
+ show(); carT=setInterval(show,5000);
 }
 function renderAll(){
  renderKPIs();renderTracker();renderClients();renderQuotes();renderRubricTags();
